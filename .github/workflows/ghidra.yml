@@ -1,0 +1,99 @@
+name: Ghidra analyze
+
+on:
+  workflow_dispatch:
+    inputs:
+      reanalyze:
+        description: "วิเคราะห์ใหม่ทั้งหมด (ไม่ใช้ cache)"
+        type: boolean
+        default: false
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 345
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Unzip input
+        run: |
+          mkdir -p work
+          unzip -o input/*.zip -d work
+          find work -type f -exec ls -la {} +
+
+      - name: Download Ghidra (latest release)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/g
+          gh release download --repo NationalSecurityAgency/ghidra --pattern 'ghidra_*_PUBLIC_*.zip' --dir /tmp/g
+          unzip -q /tmp/g/*.zip -d /opt
+          echo "GHIDRA=$(ls -d /opt/ghidra_*_PUBLIC)" >> "$GITHUB_ENV"
+
+      - name: Restore Ghidra project cache
+        id: cache
+        if: ${{ !inputs.reanalyze }}
+        uses: actions/cache@v4
+        with:
+          path: gproj
+          key: gproj-${{ hashFiles('input/*.zip') }}
+
+      - name: Run Ghidra headless (ทุก .so ใน zip)
+        env:
+          MAXMEM: 5G
+          KEYWORDS_FILE: ${{ github.workspace }}/keywords.txt
+          MAX_DECOMP: "100"
+        run: |
+          mkdir -p out gproj
+          START=$(date +%s)
+          BUDGET=$((320*60))
+
+          # ถ้ามีโฟลเดอร์ arm64-v8a ใช้เฉพาะโฟลเดอร์นั้น (กันซ้ำหลาย ABI)
+          LIBDIR=$(find work -type d -name arm64-v8a | head -n1)
+          if [ -n "$LIBDIR" ]; then SEARCH="$LIBDIR"; else SEARCH=work; fi
+
+          # ใหญ่ -> เล็ก, ตัดไฟล์เล็กกว่า 50KB, ตัดไลบรารีระบบ, ตัดชื่อซ้ำ
+          find "$SEARCH" -type f -name '*.so' -size +50k -printf '%s %p\n' | sort -rn | cut -d' ' -f2- \
+            | grep -v -E '/(libc\+\+_shared|libc|libm|libdl|liblog|libandroid|libz|libEGL|libGLESv[0-9]+|libOpenSLES|libjnigraphics)\.so$' \
+            | awk -F/ '!seen[$NF]++' > libs.txt || true
+          if [ ! -s libs.txt ]; then echo "ไม่พบไฟล์ .so ใน input/*.zip"; exit 1; fi
+          echo ">> จะวิเคราะห์:"; cat libs.txt
+          cp libs.txt out/libs.txt
+
+          while IFS= read -r SO; do
+            NAME=$(basename "$SO")
+            OUT="$PWD/out/${NAME%.so}"
+            REMAIN=$((BUDGET - ($(date +%s) - START)))
+            if [ "$REMAIN" -lt 900 ]; then
+              echo ">> ข้าม $NAME (เวลาไม่พอ)" | tee -a out/index.txt
+              continue
+            fi
+            TMO=$((REMAIN - 600))
+            if [ "$TMO" -gt 17000 ]; then TMO=17000; fi
+            echo ">> $NAME  (analysis timeout ${TMO}s)"
+            if [ "${{ steps.cache.outputs.cache-hit }}" = "true" ]; then
+              echo ">> ใช้ project จาก cache (ข้ามการวิเคราะห์)"
+              OUT_DIR="$OUT" "$GHIDRA/support/analyzeHeadless" gproj p -process "$NAME" -noanalysis \
+                -scriptPath "$PWD/scripts" -postScript ExportInfo.java < /dev/null
+            else
+              echo ">> import + วิเคราะห์ใหม่ (ช้า)"
+              OUT_DIR="$OUT" "$GHIDRA/support/analyzeHeadless" gproj p -import "$SO" -overwrite \
+                -analysisTimeoutPerFile "$TMO" \
+                -scriptPath "$PWD/scripts" -postScript ExportInfo.java < /dev/null
+            fi
+            echo "== $NAME ==" >> out/index.txt
+            cat "$OUT/summary.txt" >> out/index.txt 2>/dev/null || echo "(ไม่มี summary)" >> out/index.txt
+          done < libs.txt
+          cat out/index.txt || true
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghidra-out
+          path: out/

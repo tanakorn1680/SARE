@@ -1,0 +1,60 @@
+# keywords.txt
+#  - บรรทัดปกติ = คำค้นในสตริง (ไม่สนตัวพิมพ์ จับแบบ "มีคำนี้อยู่ในสตริง")
+#  - บรรทัดขึ้นต้น @0x... = ถอดโค้ดฟังก์ชันที่ offset นั้นตรงๆ (offset = address - imageBase เหมือนใน tsv)
+#
+# เป้าหมาย: libGTASA.so / libCheatMenu64.so (GTA San Andreas Android 2.10, com.rockstargames.gtasa)
+# ใช้หาฟิลด์/ที่อยู่ที่ยังไม่ยืนยันสำหรับ ProMenu (ดูงานค้างใน Menusan-Mod.so/PROGRESS_HANDOFF.txt ข้อ 9)
+# หมายเหตุ: ต้องมี .so จริง (libGTASA.so หรือ libCheatMenu64.so) ใส่ไว้ใน input/ ก่อนรัน Action
+
+# ---- Weapon: RapidFire / FastReload / NoReload / DualWield (ฟิลด์อนิเมชันใน CWeaponInfo +0x40..+0x58) ----
+weaponinfo
+getweaponinfo
+reloadtime
+rapidfire
+fastreload
+dualwield
+animgroup
+weapontype
+
+# ---- Vehicle: handling editor (tHandlingData), VehComp (ประตู/ยาง/ซ่อม), สีรถ, DirtLvl ----
+handlingdata
+handlingmgr
+vehcustmzr
+vehcomp
+doorstatus
+burstTyre
+vehicledamage
+colourtopbot
+dirtlevel
+
+# ---- Player: bone scale (ThinBody/BigHead/LongNeck/BigButt), SuperSprint ----
+getboneposition
+setbonerotation
+rwframe
+playersprint
+sprintenergy
+
+# ---- Player: Style (StyleFight/StyleWalk) ----
+stylefight
+stylewalk
+movestyle
+
+# ---- Game: Gravity, SolidWater, FreezeMissionTimer ----
+applygravity
+gravity
+getwaterlevel
+getwaterlevelnowaves
+solidwater
+missiontimer
+
+# ---- Menu: SaveGame instance pointer ----
+saveslot
+pcsave
+savegame
+
+# ---- Scene: Cutscene (เสี่ยงเด้งมาก ต้องระวัง), Free cam, Particle ----
+cutscenemgr
+loadcutscenedata
+startcutscene
+freecam
+particle

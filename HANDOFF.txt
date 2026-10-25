@@ -1,0 +1,32 @@
+HANDOFF — ใช้ Ghidra pipeline นี้ถอด disassembly ของ libGTASA.so / libCheatMenu64.so (GTA San Andreas Android 2.10) เพื่อยืนยัน offset ที่ ProMenu (tanakorn1680/Menusan-Mod.so) ยังขาด
+อัปเดต: 2026-10-25 | เกม: GTA San Andreas Android 2.10 (com.rockstargames.gtasa) arm64
+
+== วิธีอ่านไฟล์ชุดนี้ ==
+1. ไฟล์นี้พอสำหรับเริ่มงาน อ่านจบแล้วลงมือได้เลย
+2. keywords.txt = คำค้น/offset ที่จะให้ Ghidra ถอดโค้ด แก้ไฟล์นี้ก่อนรัน Action ทุกครั้ง
+3. ผลลัพธ์จาก Action: functions.tsv, symbols.tsv, strings.tsv (พร้อมฟังก์ชันที่อ้างถึง), decompiled.c (ตาม keywords.txt), callers.tsv + decompiled_callers.c, summary.txt
+4. เป้าหมายจริงอยู่ที่ repo tanakorn1680/Menusan-Mod.so (ProMenu) — ไฟล์ PROGRESS_HANDOFF.txt ของ repo นั้น ข้อ 9 "ยังไม่ได้ทำ" คือรายการ offset/struct ที่ repo นี้ต้องช่วยยืนยัน repo นี้ (SCRE pipeline) เป็นแค่เครื่องมือถอดโค้ด ไม่ใช่โปรเจกต์หลัก
+
+== สิ่งที่ยังขาดก่อนรันได้จริง ==
+- ยังไม่มี .so จริงใน input/ — ต้องใส่ libGTASA.so หรือ libCheatMenu64.so (arm64) เป็น zip ก่อนรัน Action (workflow เลือกไฟล์ .so ที่ใหญ่สุดในนั้น ตัดไลบรารีระบบ/เล็กกว่า 50KB อัตโนมัติ)
+  - libGTASA.so: ให้ offset ของฟิลด์ struct เกม (CWeaponInfo, CVehicle handling ฯลฯ)
+  - libCheatMenu64.so: ให้โค้ดของเมนู ARM เดิมตรงๆ เทียบว่าเมนูเดิมแก้ฟิลด์ไหนจริง (มีประโยชน์กว่าเดาจากโครงสร้างฉบับ PC)
+  ถ้ามีทั้งสองตัว ใส่พร้อมกันได้ — workflow วิเคราะห์ทุก .so ในซิป แยกผลเป็นโฟลเดอร์ต่อไลบรารี
+
+== เป้าหมาย (อ้างจาก Menusan-Mod.so/PROGRESS_HANDOFF.txt ข้อ 9) ==
+- Weapon: RapidFire / FastReload / NoReload / DualWield — ฟิลด์อนิเมชันใน CWeaponInfo (+0x40..+0x58 ฉบับ PC) ความหมายจริงใน build นี้ยังไม่ยืนยัน
+- Vehicle: tHandlingData offset ใน CVehicle 64-bit (Mass/Engine Inertia/Steering Lock ฯลฯ), VehComp* (ประตู/ยาง/ซ่อม), สีรถ, DirtLvl
+- Player: bone scale (ThinBody/LongNeck/BigHead/BigButt ผ่าน CPed::GetBonePosition/SetBoneRotation + RwFrame), SuperSprint/InfiniteEnergy (PLAYER_SPRINT_* ดูเหมือนค่าคงที่ในโค้ด ไม่ใช่ global)
+- Game: Gravity (ไม่เจอ symbol ตรง มีแค่ CPhysical::ApplyGravity), SolidWater (CWaterLevel::GetWaterLevel/GetWaterLevelNoWaves)
+- Menu: SaveGame/SaveSlot — มีที่อยู่ C_PcSave::SaveSlot(signed char,bool) แล้วแต่เป็น non-static member function ต้องหา instance pointer
+- Scene: Cutscene (เสี่ยงเด้งมาก), Free cam, Particle — ยังไม่เริ่มเลย
+
+== ขั้นต่อไป ==
+1. ผู้ใช้หา/แนบ libGTASA.so หรือ libCheatMenu64.so (arm64) ใส่ input/ เป็น zip
+2. รัน GitHub Actions (ghidra.yml) — ครั้งแรกวิเคราะห์เต็มช้า (~22 นาทีขึ้นไป) ครั้งถัดไปถ้า .so เดิมจะใช้ cache project เร็วขึ้นมาก
+3. ส่งผล decompiled.c (+ callers.tsv ถ้ามี) กลับมา อ่านหา offset ของหัวข้อข้างบน
+4. เอา offset ที่ยืนยันแล้วไปแก้ jni/ui.h ของ Menusan-Mod.so ตามกติกาของ repo นั้น (ดู PROGRESS_HANDOFF.txt ข้อ 2)
+
+== กติกาอัปเดตไฟล์นี้ ==
+- แก้บรรทัดสถานะ/หัวข้อเดิมเมื่อมีผล ไม่ต่อท้ายเป็นประวัติ
+- ข้อเท็จจริงที่ยืนยันแล้วจาก decompiled.c -> สรุปใส่ notes/FACTS.txt (สร้างใหม่เมื่อมีข้อแรก) แล้วนำ offset ไปใช้ใน Menusan-Mod.so โดยตรง
