@@ -106,6 +106,7 @@ jobs:
             case "$NAME" in
               *CheatMenu*)
                 python3 scripts/elfdump.py "$SO" "$OUT" --mode menu || true
+                python3 scripts/refbytes.py "$SO" "$OUT/decompiled.c" "$OUT/rodata_refs.tsv" || true
                 python3 scripts/gen_game_offsets.py "$OUT/decompiled.c" gen_kw.txt "$OUT/menu_game_offsets.txt" || true
                 if [ -s gen_kw.txt ]; then { echo; echo "@lib libgtasa"; cat gen_kw.txt; } >> kw_run.txt; fi
                 ;;

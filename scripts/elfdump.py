@@ -7,6 +7,7 @@
 
 mode menu (libCheatMenu64):
   segments.tsv   ตาราง PT_LOAD
+  rx.hex   hexdump ของ segment r-x ทั้งก้อน (.rodata ของ .so นี้อยู่ในนี้ รวมกับโค้ด) -> ไบต์ struct คำสั่งสคริปต์ ฯลฯ
   rodata.hex / data.hex   hexdump ของ segment ที่ไม่ใช่โค้ด (บรรทัดศูนย์ล้วนถูกตัดทิ้ง)  -> ไบต์ของ struct คำสั่งสคริปต์ (DAT_001477ec ฯลฯ), ตารางค่าคงที่
   ptrs.tsv       ทุกช่องพอยน์เตอร์ใน segment ข้อมูลที่ถูก relocate : slot, ชนิด, เป้าหมาย(offset หรือชื่อ symbol), สตริงที่เป้าหมายชี้ถึง
                  -> ตาราง {ชื่อ, พอยน์เตอร์} ของหน้า Visual/Timecyc, ตารางสตริงต่าง ๆ
@@ -144,6 +145,9 @@ def mode_menu(elf, out):
     rw = [s for s in elf.loads if not s[4] & PF_X and s[4] & 2]
     hexdump(elf, os.path.join(out, "rodata.hex"), ro)
     hexdump(elf, os.path.join(out, "data.hex"), rw)
+    # .so แบบ Android มักรวม .rodata ไว้ใน segment r-x เดียวกับโค้ด -> ro ว่าง ต้องดัมพ์ segment r-x ทั้งก้อนด้วย
+    rx = [s for s in elf.loads if s[4] & PF_X]
+    hexdump(elf, os.path.join(out, "rx.hex"), rx)
     rels = elf.relocs()
     n = 0
     with open(os.path.join(out, "ptrs.tsv"), "w") as w:
