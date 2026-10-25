@@ -1,32 +1,53 @@
-HANDOFF — ใช้ Ghidra pipeline นี้ถอด disassembly ของ libGTASA.so / libCheatMenu64.so (GTA San Andreas Android 2.10) เพื่อยืนยัน offset ที่ ProMenu (tanakorn1680/Menusan-Mod.so) ยังขาด
-อัปเดต: 2026-10-25 | เกม: GTA San Andreas Android 2.10 (com.rockstargames.gtasa) arm64
+HANDOFF — SARE (Ghidra pipeline บน GitHub Actions) สำหรับโปรเจกต์ ProMenu (tanakorn1680/Menusan-Mod.so)
+อัปเดต: 2026-10-25 | เกม: GTA San Andreas Android 2.10 (com.rockstargames.gtasa) arm64 | เมนูต้นแบบ: ARM Cheat Menu v2.32 (libCheatMenu64.so)
 
-== วิธีอ่านไฟล์ชุดนี้ ==
-1. ไฟล์นี้พอสำหรับเริ่มงาน อ่านจบแล้วลงมือได้เลย
-2. keywords.txt = คำค้น/offset ที่จะให้ Ghidra ถอดโค้ด แก้ไฟล์นี้ก่อนรัน Action ทุกครั้ง
-3. ผลลัพธ์จาก Action: functions.tsv, symbols.tsv, strings.tsv (พร้อมฟังก์ชันที่อ้างถึง), decompiled.c (ตาม keywords.txt), callers.tsv + decompiled_callers.c, summary.txt
-4. เป้าหมายจริงอยู่ที่ repo tanakorn1680/Menusan-Mod.so (ProMenu) — ไฟล์ PROGRESS_HANDOFF.txt ของ repo นั้น ข้อ 9 "ยังไม่ได้ทำ" คือรายการ offset/struct ที่ repo นี้ต้องช่วยยืนยัน repo นี้ (SCRE pipeline) เป็นแค่เครื่องมือถอดโค้ด ไม่ใช่โปรเจกต์หลัก
+== เป้าหมาย ==
+ProMenu ต้องมีฟังก์ชันเท่าเมนู ARM Cheat Menu v2.32 ทั้งหมด (ยึดเวอร์ชันใหม่) ; ข้อมูลที่ต้องใช้คือ "โค้ดจริง" ของเมนูต้นแบบ (ฟิลด์ struct, ค่าคงที่, hook,
+สัญลักษณ์เกมที่ใช้) กับโค้ดเกมที่เกี่ยวข้อง รอบนี้ตั้งค่าให้เก็บทั้งหมดในการรันครั้งเดียว ไม่ต้องรันทีละหัวข้อ
 
-== สิ่งที่ยังขาดก่อนรันได้จริง ==
-- ยังไม่มี .so จริงใน input/ — ต้องใส่ libGTASA.so หรือ libCheatMenu64.so (arm64) เป็น zip ก่อนรัน Action (workflow เลือกไฟล์ .so ที่ใหญ่สุดในนั้น ตัดไลบรารีระบบ/เล็กกว่า 50KB อัตโนมัติ)
-  - libGTASA.so: ให้ offset ของฟิลด์ struct เกม (CWeaponInfo, CVehicle handling ฯลฯ)
-  - libCheatMenu64.so: ให้โค้ดของเมนู ARM เดิมตรงๆ เทียบว่าเมนูเดิมแก้ฟิลด์ไหนจริง (มีประโยชน์กว่าเดาจากโครงสร้างฉบับ PC)
-  ถ้ามีทั้งสองตัว ใส่พร้อมกันได้ — workflow วิเคราะห์ทุก .so ในซิป แยกผลเป็นโฟลเดอร์ต่อไลบรารี
+== ต้องมีอะไรก่อนรัน ==
+1. input/*.zip ที่มี .so จริง (arm64): libGTASA.so + libCheatMenu64.so (+ libSAUtils64.so ถ้ามี) — ใช้ zip เดิมได้ ถ้าไม่แก้ cache project จะถูกใช้ (เร็ว)
+2. keywords.txt (ตั้งไว้แล้วสำหรับรอบนี้ ดูหัวไฟล์) ไม่ต้องแก้ก่อนรัน
 
-== เป้าหมาย (อ้างจาก Menusan-Mod.so/PROGRESS_HANDOFF.txt ข้อ 9) ==
-- Weapon: RapidFire / FastReload / NoReload / DualWield — ฟิลด์อนิเมชันใน CWeaponInfo (+0x40..+0x58 ฉบับ PC) ความหมายจริงใน build นี้ยังไม่ยืนยัน
-- Vehicle: tHandlingData offset ใน CVehicle 64-bit (Mass/Engine Inertia/Steering Lock ฯลฯ), VehComp* (ประตู/ยาง/ซ่อม), สีรถ, DirtLvl
-- Player: bone scale (ThinBody/LongNeck/BigHead/BigButt ผ่าน CPed::GetBonePosition/SetBoneRotation + RwFrame), SuperSprint/InfiniteEnergy (PLAYER_SPRINT_* ดูเหมือนค่าคงที่ในโค้ด ไม่ใช่ global)
-- Game: Gravity (ไม่เจอ symbol ตรง มีแค่ CPhysical::ApplyGravity), SolidWater (CWaterLevel::GetWaterLevel/GetWaterLevelNoWaves)
-- Menu: SaveGame/SaveSlot — มีที่อยู่ C_PcSave::SaveSlot(signed char,bool) แล้วแต่เป็น non-static member function ต้องหา instance pointer
-- Scene: Cutscene (เสี่ยงเด้งมาก), Free cam, Particle — ยังไม่เริ่มเลย
+== วิธีรัน ==
+Actions > "Ghidra analyze" > Run workflow
+  reanalyze = false (ใช้ cache ถ้า zip เดิม)  |  only = "libGTASA.so,libCheatMenu64.so" (ค่าเริ่มต้น ตัดไลบรารีอื่นออกให้เร็ว ; ว่าง = ทุกตัว)
+ครั้งแรกที่ไม่มี cache วิเคราะห์ libGTASA ~22+ นาที ; ถ้ามี cache ทั้งงานน่าจะจบใน ~10-20 นาที
+เสร็จแล้วโหลด artifact "ghidra-out" แล้วส่งทั้ง zip กลับมาให้ AI ที่ทำ ProMenu (ห้ามตัดไฟล์ทิ้ง)
 
-== ขั้นต่อไป ==
-1. ผู้ใช้หา/แนบ libGTASA.so หรือ libCheatMenu64.so (arm64) ใส่ input/ เป็น zip
-2. รัน GitHub Actions (ghidra.yml) — ครั้งแรกวิเคราะห์เต็มช้า (~22 นาทีขึ้นไป) ครั้งถัดไปถ้า .so เดิมจะใช้ cache project เร็วขึ้นมาก
-3. ส่งผล decompiled.c (+ callers.tsv ถ้ามี) กลับมา อ่านหา offset ของหัวข้อข้างบน
-4. เอา offset ที่ยืนยันแล้วไปแก้ jni/ui.h ของ Menusan-Mod.so ตามกติกาของ repo นั้น (ดู PROGRESS_HANDOFF.txt ข้อ 2)
+== ผลลัพธ์ (out/<ไลบรารี>/) ==
+- decompiled.named.c  ← อ่านไฟล์นี้เป็นหลัก : โค้ดถอดแล้ว + ชื่อสัญลักษณ์เกมจริงแทน FUN_/DAT_ ของ stub/ตัวแปรนำเข้า (เช่น CWaterLevel_GetWaterLevel, g_CTimeCycle_m_vRedGrade)
+- decompiled.c / decompiled_callers.c / decompiled_callees.c (+ .named.c) : ต้นฉบับ Ghidra ; callees = ฟังก์ชันที่โค้ดเมนูเรียกบ่อยสุด (ImGui ที่ลิงก์แบบ static, ตัวช่วยแปลข้อความ)
+- imports.tsv : ตาราง FUN_/DAT_ -> mangled -> demangled (รวมที่อยู่แบบ base+offset ตรง ๆ ที่เมนูใช้กับข้อมูลเกมที่ไม่มีชื่อ symbol)
+- byfunc.tsv : ฟังก์ชัน -> สตริงที่อ้างถึง (ไว้ดูว่าฟังก์ชันไหนคือหน้า/ฟีเจอร์ไหน เช่น 0x12f500 = GamePage)
+- functions.tsv / symbols.tsv / strings.tsv / callers.tsv / callees.tsv / summary.txt , out/index.txt
+
+== สิ่งที่รอบนี้ถอดให้ ==
+libCheatMenu64.so (v2.32 imageBase 0x100000, ImGui ลิงก์แบบ static ไม่มีชื่อ):
+  @range 0x9d000-0xa5000  stub นำเข้าสัญลักษณ์เกม (เรียก dlsym-wrapper ด้วยชื่อ mangled) + _INIT ที่ผูกตัวแปรกับสัญลักษณ์
+  @range 0x100000-0x1a0000 โค้ดเมนูทั้งหมด (ทุกหน้า, hook, config, OnModLoad) — ข้าม toml:: / std:: อัตโนมัติ
+  @callees 220 ตัวช่วยที่เรียกบ่อยสุด
+libGTASA.so (370 ฟังก์ชัน, @offset จาก symbols.tsv):
+  136 ฟังก์ชันที่ libCheatMenu64 นำเข้าจริง + ฟังก์ชันตรรกะที่ต้องยืนยันความหมาย: CWeaponInfo::*, cHandlingDataMgr::*, C_PcSave::*, CCutsceneMgr::*,
+  CTimeCycle::*, CPostEffects::*, CSpecialFX::Render/Update, CWeather::*, CRenderer::ConstructRenderList/ScanWorld, CPlayerPed::ProcessControl, CPed::GetBonePosition/Render/PreRender/
+  SetModelIndex/ShoulderBoneRotation, CPhysical::ApplyGravity, CWaterLevel::GetWaterLevel*/RenderWater, CTheScripts::Process, CPlayerInfo::Process, AllowDistanceFog, CCam::Process_*, CHud::DrawRadar, CClouds::Render
+  (ตัวแปร/ตาราง global ของเกม 587 ตัวที่เมนูใช้ ดูชื่อ+offset จาก libGTASA symbols.tsv ; ที่อยู่แบบ base+offset ที่เมนูฝังไว้ดูใน imports.tsv)
+
+== ไฟล์เหล่านี้อยู่ใน repo นี้ (แก้แล้วในรอบ 2026-10-25) ==
+- scripts/ExportInfo.java : เพิ่ม @lib / @range / @0xOFFSET # คอมเมนต์ / fn:<ชื่อ> / @nocallers / @callees N  (คอมไพล์ตรวจกับ API จำลองแล้ว ; ยังไม่เคยรันกับ Ghidra จริงในรอบนี้)
+- scripts/postprocess.py : ขั้นหลังรัน Ghidra (Python ล้วน, ทดสอบกับผลเดิมแล้ว) ; ถ้าพังไม่ทำให้ workflow ล้ม
+- .github/workflows/ghidra.yml : input "only", MAX_DECOMP=4000, MAX_CALLERS=150, ขั้น postprocess ก่อนอัปโหลด
+- keywords.txt : สร้างจาก symbols/strings ของผลรอบก่อน ; แก้เองได้ (บรรทัด # = คอมเมนต์)
+
+== ข้อควรรู้เมื่ออ่านผล ==
+- offset ทุกตัว = address - 0x100000 ; ชื่อ Ghidra FUN_00xxxxxx = address (offset + 0x100000)
+- ฟังก์ชันหน้าเมนูมีตัวแปร/ฟิลด์เป็น this+offset (เช่น param_3 + 0x69 = checkbox SolidWater) ; อ่าน byfunc.tsv คู่กัน
+- ถ้าต้องการฟังก์ชันเพิ่ม: เติม @0x.. หรือ fn:.. ใน keywords.txt แล้วรันซ้ำ (cache เดิม เร็ว) — แต่จุดประสงค์รอบนี้คือให้ครบในรอบเดียว
+
+== งานของ ProMenu ที่รอผลนี้ ==
+ดู PROGRESS_HANDOFF.txt ของ repo Menusan-Mod.so (ข้อ 16 และ 17) : Visual tab (Timecyc ครบ + Keep fog + Reload timecyc + Tunnel vision),
+Game (SolidWater, Gravity, CameraZoom, FreezeMissionTimer, SaveGame), Weapon (RapidFire/FastReload/NoReload/DualWield), Vehicle (handling editor, VehComp, สี, DirtLvl),
+Player (bone scale, SuperSprint, Style), Scene (Cutscene, Free cam, Particle), Menu (Timecyc 24h / colorcycle) ฯลฯ
 
 == กติกาอัปเดตไฟล์นี้ ==
-- แก้บรรทัดสถานะ/หัวข้อเดิมเมื่อมีผล ไม่ต่อท้ายเป็นประวัติ
-- ข้อเท็จจริงที่ยืนยันแล้วจาก decompiled.c -> สรุปใส่ notes/FACTS.txt (สร้างใหม่เมื่อมีข้อแรก) แล้วนำ offset ไปใช้ใน Menusan-Mod.so โดยตรง
+แก้บรรทัดสถานะ/หัวข้อเดิมเมื่อมีผล ไม่ต่อท้ายเป็นประวัติ ; ข้อเท็จจริงที่ยืนยันจาก decompiled แล้ว -> notes/FACTS.txt

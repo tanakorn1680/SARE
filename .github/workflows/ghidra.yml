@@ -7,6 +7,10 @@ on:
         description: "วิเคราะห์ใหม่ทั้งหมด (ไม่ใช้ cache)"
         type: boolean
         default: false
+      only:
+        description: "วิเคราะห์เฉพาะไลบรารีเหล่านี้ (คั่นด้วย , ว่าง = ทุกตัวใน zip)"
+        type: string
+        default: "libGTASA.so,libCheatMenu64.so"
 
 jobs:
   analyze:
@@ -47,7 +51,9 @@ jobs:
         env:
           MAXMEM: 5G
           KEYWORDS_FILE: ${{ github.workspace }}/keywords.txt
-          MAX_DECOMP: "100"
+          MAX_DECOMP: "4000"
+          MAX_CALLERS: "150"
+          ONLY: ${{ inputs.only }}
         run: |
           mkdir -p out gproj
           START=$(date +%s)
@@ -61,6 +67,13 @@ jobs:
           find "$SEARCH" -type f -name '*.so' -size +50k -printf '%s %p\n' | sort -rn | cut -d' ' -f2- \
             | grep -v -E '/(libc\+\+_shared|libc|libm|libdl|liblog|libandroid|libz|libEGL|libGLESv[0-9]+|libOpenSLES|libjnigraphics)\.so$' \
             | awk -F/ '!seen[$NF]++' > libs.txt || true
+          if [ -n "$ONLY" ]; then
+            PAT=$(echo "$ONLY" | tr ',' '\n' | sed 's/^ *//; s/ *$//; s/\./\\./g' | grep -v '^$' | paste -sd'|')
+            if [ -n "$PAT" ]; then
+              grep -E "/($PAT)$" libs.txt > libs.only || true
+              if [ -s libs.only ]; then mv libs.only libs.txt; else echo ">> ไม่พบไลบรารีตาม only=$ONLY ใช้ทุกตัวแทน"; fi
+            fi
+          fi
           if [ ! -s libs.txt ]; then echo "ไม่พบไฟล์ .so ใน input/*.zip"; exit 1; fi
           echo ">> จะวิเคราะห์:"; cat libs.txt
           cp libs.txt out/libs.txt
@@ -90,6 +103,10 @@ jobs:
             cat "$OUT/summary.txt" >> out/index.txt 2>/dev/null || echo "(ไม่มี summary)" >> out/index.txt
           done < libs.txt
           cat out/index.txt || true
+
+      - name: Post-process (ใส่ชื่อสัญลักษณ์เกมแทน FUN_/DAT_ + byfunc.tsv)
+        if: always()
+        run: python3 scripts/postprocess.py out || true
 
       - name: Upload results
         if: always()

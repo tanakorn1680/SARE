@@ -1,60 +1,400 @@
-# keywords.txt
-#  - บรรทัดปกติ = คำค้นในสตริง (ไม่สนตัวพิมพ์ จับแบบ "มีคำนี้อยู่ในสตริง")
-#  - บรรทัดขึ้นต้น @0x... = ถอดโค้ดฟังก์ชันที่ offset นั้นตรงๆ (offset = address - imageBase เหมือนใน tsv)
+# keywords.txt  (รูปแบบเต็มดูหัวไฟล์ scripts/ExportInfo.java)
+#  @lib <ชื่อ>      บรรทัดต่อจากนี้ใช้เฉพาะไลบรารีที่ชื่อมีคำนี้ ; @lib * = ทุกไลบรารี
+#  @range 0xA-0xB   ถอดทุกฟังก์ชันใน offset ช่วงนี้ ;  @0xOFFSET = ฟังก์ชันเดียว ;  fn:<คำ> = ฟังก์ชันที่ชื่อมีคำนี้
+#  @nocallers       ไม่ถอด callers (ไลบรารีนี้มีเป้าหมายเยอะ)
+#  offset = address - imageBase (0x100000) เหมือนใน functions.tsv / symbols.tsv
 #
-# เป้าหมาย: libGTASA.so / libCheatMenu64.so (GTA San Andreas Android 2.10, com.rockstargames.gtasa)
-# ใช้หาฟิลด์/ที่อยู่ที่ยังไม่ยืนยันสำหรับ ProMenu (ดูงานค้างใน Menusan-Mod.so/PROGRESS_HANDOFF.txt ข้อ 9)
-# หมายเหตุ: ต้องมี .so จริง (libGTASA.so หรือ libCheatMenu64.so) ใส่ไว้ใน input/ ก่อนรัน Action
+# รอบนี้ (เป้าหมาย): รวบรวมข้อมูลของ "เมนู ARM Cheat Menu v2.32 ทั้งตัว" ให้ครบในรอบเดียว เพื่อนำไปทำ ProMenu ต่อ
+#  1) libCheatMenu64.so : ถอดโค้ดทุกฟังก์ชันของเมนู (ทุกหน้า: Player/Vehicle/Weapon/Ped/Game/Visual/Teleport/Scene/Menu ฯลฯ)
+#                          + ตัวเชื่อมสัญลักษณ์เกม (stub / _INIT) เพื่อให้ postprocess.py เปลี่ยน FUN_/DAT_ เป็นชื่อสัญลักษณ์จริง
+#  2) libGTASA.so       : ถอดโค้ดฟังก์ชันเกมที่เมนูเรียกใช้ทั้งหมด (136 ตัว) + ฟังก์ชันที่ใช้ยืนยันความหมายของฟิลด์/ค่าคงที่
+#                          (CWeaponInfo, handling, save, cutscene, timecyc, postfx, weather, camera, น้ำ, แรงโน้มถ่วง ฯลฯ)
+# แก้ไฟล์นี้ก่อนรันรอบถัดไปได้ (ถ้า input .zip เดิม ใช้ cache project เร็วมาก)
 
-# ---- Weapon: RapidFire / FastReload / NoReload / DualWield (ฟิลด์อนิเมชันใน CWeaponInfo +0x40..+0x58) ----
-weaponinfo
-getweaponinfo
-reloadtime
-rapidfire
-fastreload
-dualwield
-animgroup
-weapontype
+@lib libcheatmenu64
+@nocallers
+# ถอดฟังก์ชันที่โค้ดเมนูเรียกบ่อยสุด 220 ตัว (ImGui ที่ลิงก์แบบ static ไม่มีชื่อ + ตัวช่วยแปลข้อความ/ฟอร์แมต) -> decompiled_callees.c
+@callees 220
+# stub นำเข้าสัญลักษณ์เกม + _INIT ที่ผูกตัวแปรกับสัญลักษณ์ (dlsym ตามชื่อ)
+@range 0x9d000-0xa5000
+# โค้ดเมนูทั้งหมด (ตั้งแต่ ImGui backend / config / ทุกหน้า / hook / OnModLoad) ; toml:: std:: ถูกข้ามอัตโนมัติ
+@range 0x100000-0x181000
+# ส่วนท้าย (ตัวช่วย/ฟอร์แมต/ตัวแปรที่เมนูผูกไว้) ถ้า libc++ ปนก็ไม่เป็นไร ถูกกรองตามชื่อ
+@range 0x181000-0x1a0000
 
-# ---- Vehicle: handling editor (tHandlingData), VehComp (ประตู/ยาง/ซ่อม), สีรถ, DirtLvl ----
-handlingdata
-handlingmgr
-vehcustmzr
-vehcomp
-doorstatus
-burstTyre
-vehicledamage
-colourtopbot
-dirtlevel
+@lib libgtasa
 
-# ---- Player: bone scale (ThinBody/BigHead/LongNeck/BigButt), SuperSprint ----
-getboneposition
-setbonerotation
-rwframe
-playersprint
-sprintenergy
 
-# ---- Player: Style (StyleFight/StyleWalk) ----
-stylefight
-stylewalk
-movestyle
+# ---- ฟังก์ชันเกมที่ libCheatMenu64 นำเข้า (เมนูเรียกใช้จริง) ----
+@0x31ec0c   # AND_TouchEvent
+@0x46dbd0   # CAEAudioUtility::GetRandomNumberInRange
+@0x67df0c   # CAutomobile::Fix
+@0x67f698   # CAutomobile::PlaceOnRoadProperly
+@0x679ddc   # CAutomobile::ResetSuspension
+@0x6880e8   # CBike::Fix
+@0x6881f0   # CBike::PlaceOnRoadProperly
+@0x6860ac   # CBike::ResetSuspension
+@0x49fd38   # CCam::Process_FollowCar_SA
+@0x4a22b8   # CCam::Process_FollowPed_SA
+@0x4b9990   # CCamera::Fade
+@0x4b9ad8   # CCamera::Find3rdPersonCamTargetVector
+@0x4b9ac4   # CCamera::FindCamFOV
+@0x4b2bcc   # CCamera::GetFading
+@0x4bfa2c   # CCamera::LerpFOV
+@0x3c2220   # CCheat::BlowUpCarsCheat
+@0x3c1c50   # CCheat::CloudyWeatherCheat
+@0x3c1c48   # CCheat::ExtraSunnyWeatherCheat
+@0x3c23d0   # CCheat::FatCheat
+@0x3c1c60   # CCheat::FoggyWeatherCheat
+@0x3c2418   # CCheat::MuscleCheat
+@0x3c1c58   # CCheat::RainyWeatherCheat
+@0x3c29ec   # CCheat::SandstormCheat
+@0x3c2470   # CCheat::SkinnyCheat
+@0x3c29b8   # CCheat::StormCheat
+@0x3c22a4   # CCheat::SuicideCheat
+@0x469cc4   # CCutsceneMgr::DeleteCutsceneData
+@0x469c10   # CCutsceneMgr::LoadCutsceneData
+@0x5502ac   # CCutsceneMgr::StartCutscene
+@0x469f70   # CCutsceneMgr::Update
+@0x4ca0a4   # CDebug::DebugDisplayTextBuffer
+@0x4f3e0c   # CEntity::CleanUpOldReference
+@0x4cb9f8   # CEntity::GetBoundCentre
+@0x4cd360   # CEntity::GetIsBoundingBoxOnScreen
+@0x4cbc98   # CEntity::GetIsOnScreen
+@0x4ccf24   # CEntity::Render
+@0x4cbb00   # CEntity::UpdateRpHAnim
+@0x440bc4   # CEventGroup::Remove
+@0x440d94   # CEventGroup::Reorganise
+@0x4d2f4c   # CFileMgr::CloseFile
+@0x4d2b74   # CFileMgr::OpenFile
+@0x4d2d48   # CFileMgr::ReadLine
+@0x55b668   # CGame::InitialiseRenderWare
+@0x695584   # CHeli::Fix
+@0x53731c   # CMatrix::CMatrix
+@0x537ad8   # CMatrix::SetRotate
+@0x537958   # CMatrix::SetRotateZOnly
+@0x537894   # CMatrix::SetTranslateOnly
+@0x53757c   # CMatrix::UpdateRW
+@0x537438   # CMatrix::~CMatrix
+@0x45ce70   # CModelInfo::IsBikeModel
+@0x45d000   # CModelInfo::IsBmxModel
+@0x45cc80   # CModelInfo::IsBoatModel
+@0x45cce4   # CModelInfo::IsCarModel
+@0x45cda8   # CModelInfo::IsHeliModel
+@0x45ce0c   # CModelInfo::IsPlaneModel
+@0x45d064   # CModelInfo::IsTrailerModel
+@0x45cd44   # CModelInfo::IsTrainModel
+@0x45d0c8   # CModelInfo::IsVehicleModelType
+@0x4db628   # CPad::GetPad
+@0x595604   # CPed::ClearWeapons
+@0x59aee4   # CPed::GetBonePosition
+@0x59f4c4   # CPed::GetHeadAndFootPositions
+@0x597464   # CPed::GetWeaponSkill
+@0x59525c   # CPed::GiveWeapon
+@0x59afc8   # CPed::IsAlive
+@0x595400   # CPed::IsPlayer
+@0x59b7b0   # CPed::SetCurrentWeapon
+@0x595998   # CPed::SetModelIndex
+@0x59bf84   # CPed::ShoulderBoneRotation
+@0x5bcb80   # CPedIntelligence::GetTaskUseGun
+@0x69be14   # CPlane::Fix
+@0x5c7700   # CPlayerPed::CheatWantedLevel
+@0x5c7a2c   # CPlayerPed::GetPlayerInfoForThisPlayerPed
+@0x5cf8fc   # CPopulation::IsFemale
+@0x5cf8e0   # CPopulation::IsMale
+@0x6d7edc   # CPostEffects::Fog
+@0x69e584   # CQuadBike::Fix
+@0x6ee91c   # CSprite2d::DrawRect
+@0x6e9df8   # CSprite::CalcScreenCoors
+@0x4fadbc   # CStats::GetStatValue
+@0x4faa40   # CStats::SetStatValue
+@0x396b28   # CStreaming::LoadAllRequestedModels
+@0x396eec   # CStreaming::LoadScene
+@0x39769c   # CStreaming::LoadSceneCollision
+@0x3949e0   # CStreaming::RequestModel
+@0x39b2a0   # CStreaming::RequestSpecialChar
+@0x399090   # CStreaming::SetModelIsDeletable
+@0x39b2cc   # CStreaming::SetSpecialCharIsDeletable
+@0x512f40   # CTheZones::FindSmallestZoneForPosition
+@0x55d4a0   # CTimeCycle::Initialise
+@0x36fd1c   # CTouchInterface::IsReleased
+@0x36fc60   # CTouchInterface::IsTouched
+@0x6a2fa8   # CTrain::CreateMissionTrain
+@0x6a08fc   # CTrain::FindClosestTrackNode
+@0x6aff4c   # CVehicle::AddVehicleUpgrade
+@0x6ba834   # CWaterLevel::GetWaterLevel
+@0x6ba8dc   # CWaterLevel::GetWaterLevelNoWaves
+@0x709ba8   # CWeaponInfo::GetWeaponInfo
+@0x560ea8   # CWeaponInfo::LoadWeaponData
+@0x6f24e8   # CWeather::ForceWeatherNow
+@0x3725d0   # CWidget::IsTouched
+@0x373290   # CWidget::SetScissor
+@0x507518   # CWorld::Add
+@0x50f3a0   # CWorld::FindGroundZForCoord
+@0x508c7c   # CWorld::ProcessLineOfSight
+@0x5073a0   # CWorld::Remove
+@0x512058   # CZone::GetTranslatedName
+@0x5d4708   # C_PcSave::DeleteSlot
+@0x5d4338   # C_PcSave::SaveSlot
+@0x538ec4   # CrossProduct
+@0x4efae0   # FindPlayerPed
+@0x4efdec   # FindPlayerVehicle
+@0x6f54cc   # GetAnimHierarchyFromSkinClump
+@0x66d420   # GxtCharToAscii
+@0x5d3884   # IKChainManager_c::LookAt
+@0x42edcc   # IsValidModForVehicle
+@0x322028   # OS_GetDateTime
+@0x3221bc   # OS_ServiceOpenLink
+@0x33333c   # OS_SystemMemoryStats
+@0x46a694   # RpAnimBlendClumpFindBone
+@0x255b68   # RpHAnimHierarchyGetMatrixArray
+@0x255be8   # RpHAnimIDGetIndex
+@0x27d708   # RwIm2DRenderIndexedPrimitive
+@0x270b1c   # RwImageAllocatePixels
+@0x2709d8   # RwImageCreate
+@0x270a50   # RwImageDestroy
+@0x2725e0   # RwImageFindRasterFormat
+@0x27ea9c   # RwMatrixScale
+@0x272e34   # RwRasterCreate
+@0x272b24   # RwRasterDestroy
+@0x2725a4   # RwRasterSetFromImage
+@0x27d668   # RwRenderStateSet
+@0x4eb7e0   # TransformPoint
+@0x55f898   # cHandlingDataMgr::LoadHandlingData
+@0x6a4bb0   # cTransmission::InitGearRatios
 
-# ---- Game: Gravity, SolidWater, FreezeMissionTimer ----
-applygravity
-gravity
-getwaterlevel
-getwaterlevelnowaves
-solidwater
-missiontimer
-
-# ---- Menu: SaveGame instance pointer ----
-saveslot
-pcsave
-savegame
-
-# ---- Scene: Cutscene (เสี่ยงเด้งมาก ต้องระวัง), Free cam, Particle ----
-cutscenemgr
-loadcutscenedata
-startcutscene
-freecam
-particle
+# ---- ฟังก์ชันเกมเพิ่ม: ตัวแปรที่เมนูแก้ค่า/ตรรกะที่ต้องยืนยัน ----
+@0x221900   # AllowDistanceFog
+@0x4f4200   # AllowDistanceFog
+@0x4aa960   # CCam::Process_1rstPersonPedOnPC
+@0x4a8118   # CCam::Process_1stPerson
+@0x4a5b04   # CCam::Process_AimWeapon
+@0x4abd34   # CCam::Process_AttachedCam
+@0x4a8b18   # CCam::Process_Cam_TwoPlayer
+@0x4b4040   # CCam::Process_Cam_TwoPlayer_CalcSource
+@0x4a9330   # CCam::Process_Cam_TwoPlayer_InCarAndShooting
+@0x4a9de0   # CCam::Process_Cam_TwoPlayer_Separate_Cars
+@0x4aa27c   # CCam::Process_Cam_TwoPlayer_Separate_Cars_TopDown
+@0x4b4210   # CCam::Process_Cam_TwoPlayer_TestLOSs
+@0x4ad3cc   # CCam::Process_DW_BirdyCam
+@0x4acc74   # CCam::Process_DW_CamManCam
+@0x4ae2a8   # CCam::Process_DW_DogFightCam
+@0x4ae2bc   # CCam::Process_DW_FishCam
+@0x4ac06c   # CCam::Process_DW_HeliChaseCam
+@0x4ae2d0   # CCam::Process_DW_PlaneCam1
+@0x4ae7cc   # CCam::Process_DW_PlaneCam2
+@0x4aecb4   # CCam::Process_DW_PlaneCam3
+@0x4add24   # CCam::Process_DW_PlaneSpotterCam
+@0x4aa410   # CCam::Process_Editor
+@0x4a7c58   # CCam::Process_Fixed
+@0x22e730   # CCam::Process_FlyBy
+@0x54e18c   # CCam::Process_FlyBy
+@0x220360   # CCam::Process_FollowCar_SA
+@0x4a1894   # CCam::Process_FollowPedWithMouse
+@0x220890   # CCam::Process_FollowPed_SA
+@0x4a3ea8   # CCam::Process_M16_1stPerson
+@0x4a5484   # CCam::Process_Rocket
+@0x4a7edc   # CCam::Process_SpecialFixedForSyphon
+@0x4a73e0   # CCam::Process_WheelCam
+@0x2281e0   # CClouds::Render
+@0x6c2af8   # CClouds::Render
+@0x2274e0   # CClouds::RenderBottomFromHeight
+@0x6c3e80   # CClouds::RenderBottomFromHeight
+@0x220830   # CClouds::RenderSkyPolys
+@0x6c37fc   # CClouds::RenderSkyPolys
+@0x22d790   # CCutsceneMgr::AppendToNextCutscene
+@0x46a0b8   # CCutsceneMgr::AppendToNextCutscene
+@0x54fc34   # CCutsceneMgr::AttachObjectToBone
+@0x550268   # CCutsceneMgr::AttachObjectToFrame
+@0x55029c   # CCutsceneMgr::AttachObjectToParent
+@0x469c80   # CCutsceneMgr::BuildCutscenePlayer
+@0x54fa50   # CCutsceneMgr::CreateCutsceneObject
+@0x227a50   # CCutsceneMgr::DeleteCutsceneData
+@0x230e60   # CCutsceneMgr::DeleteCutsceneData_overlay
+@0x54fcf8   # CCutsceneMgr::DeleteCutsceneData_overlay
+@0x550a60   # CCutsceneMgr::FinishCutscene
+@0x22a690   # CCutsceneMgr::GetCutsceneTimeInMilleseconds
+@0x55098c   # CCutsceneMgr::GetCutsceneTimeInMilleseconds
+@0x223000   # CCutsceneMgr::HasCutsceneFinished
+@0x550af8   # CCutsceneMgr::HasCutsceneFinished
+@0x54f63c   # CCutsceneMgr::HideRequestedObjects
+@0x229720   # CCutsceneMgr::Initialise
+@0x469af4   # CCutsceneMgr::Initialise
+@0x227020   # CCutsceneMgr::IsCutsceneSkipButtonBeingPressed
+@0x469f88   # CCutsceneMgr::IsCutsceneSkipButtonBeingPressed
+@0x2212e0   # CCutsceneMgr::LoadAnimationUncompressed
+@0x469bc0   # CCutsceneMgr::LoadAnimationUncompressed
+@0x22d7a0   # CCutsceneMgr::LoadCutsceneData
+@0x54f780   # CCutsceneMgr::LoadCutsceneData_loading
+@0x2305f0   # CCutsceneMgr::LoadCutsceneData_overlay
+@0x54fc7c   # CCutsceneMgr::LoadCutsceneData_overlay
+@0x54f3e8   # CCutsceneMgr::LoadCutsceneData_postload
+@0x54e744   # CCutsceneMgr::LoadCutsceneData_preload
+@0x469d00   # CCutsceneMgr::LoadEverythingBecauseCutsceneDeletedAllOfIt
+@0x469e20   # CCutsceneMgr::RemoveEverythingBecauseCutsceneDoesntFitInMemory
+@0x54fb68   # CCutsceneMgr::SetCutsceneAnim
+@0x550234   # CCutsceneMgr::SetCutsceneAnimToLoop
+@0x550340   # CCutsceneMgr::SetupCutsceneToStart
+@0x22f630   # CCutsceneMgr::Shutdown
+@0x469b80   # CCutsceneMgr::Shutdown
+@0x22afc0   # CCutsceneMgr::SkipCutscene
+@0x5509ac   # CCutsceneMgr::SkipCutscene
+@0x229d10   # CCutsceneMgr::StartCutscene
+@0x22ecd0   # CCutsceneMgr::Update
+@0x231010   # CCutsceneMgr::Update_overlay
+@0x550520   # CCutsceneMgr::Update_overlay
+@0x51cff0   # CHud::DrawRadar
+@0x21c100   # CPed::GetBonePosition
+@0x59c240   # CPed::PreRender
+@0x224db0   # CPed::PreRenderAfterTest
+@0x59c254   # CPed::PreRenderAfterTest
+@0x59d3b8   # CPed::Render
+@0x22c850   # CPed::SetModelIndex
+@0x22fb70   # CPed::ShoulderBoneRotation
+@0x4e1e74   # CPhysical::ApplyGravity
+@0x22b1d0   # CPlayerInfo::Process
+@0x4ed8b0   # CPlayerInfo::Process
+@0x5c2088   # CPlayerPed::ProcessControl
+@0x6d82c8   # CPostEffects::ColourFilter
+@0x6d848c   # CPostEffects::DarknessFilter
+@0x6d9068   # CPostEffects::InfraredVision
+@0x2242e0   # CPostEffects::InfraredVisionRestoreLightsForHeatObjects
+@0x6db020   # CPostEffects::InfraredVisionRestoreLightsForHeatObjects
+@0x219dc0   # CPostEffects::InfraredVisionSetLightsForDefaultObjects
+@0x6db048   # CPostEffects::InfraredVisionSetLightsForDefaultObjects
+@0x6daf3c   # CPostEffects::InfraredVisionSetLightsForHeatObjects
+@0x21f4f0   # CPostEffects::InfraredVisionStoreAndSetLightsForHeatObjects
+@0x6daf64   # CPostEffects::InfraredVisionStoreAndSetLightsForHeatObjects
+@0x223880   # CPostEffects::MobileRender
+@0x6da2b8   # CPostEffects::MobileRender
+@0x6d8ec8   # CPostEffects::NightVision
+@0x228450   # CPostEffects::NightVisionSetLights
+@0x6dadc0   # CPostEffects::NightVisionSetLights
+@0x6d72dc   # CPostEffects::Render
+@0x6d72c8   # CPostEffects::ScriptCCTVSwitch
+@0x21d240   # CPostEffects::ScriptDarknessFilterSwitch
+@0x6d7280   # CPostEffects::ScriptDarknessFilterSwitch
+@0x21e970   # CPostEffects::ScriptHeatHazeFXSwitch
+@0x6d726c   # CPostEffects::ScriptHeatHazeFXSwitch
+@0x21f7d0   # CPostEffects::ScriptInfraredVisionSwitch
+@0x6d7248   # CPostEffects::ScriptInfraredVisionSwitch
+@0x21f360   # CPostEffects::ScriptNightVisionSwitch
+@0x6d7224   # CPostEffects::ScriptNightVisionSwitch
+@0x21ed60   # CPostEffects::ScriptResetForEffects
+@0x6d71d4   # CPostEffects::ScriptResetForEffects
+@0x2246b0   # CPostEffects::Update
+@0x6d6e34   # CPostEffects::Update
+@0x21bb00   # CRenderer::ConstructRenderList
+@0x4f4a48   # CRenderer::ConstructRenderList
+@0x4f43bc   # CRenderer::ScanWorld
+@0x21cdf0   # CSpecialFX::Render
+@0x6e50cc   # CSpecialFX::Render
+@0x224ed0   # CSpecialFX::Render2DFXs
+@0x6e5a78   # CSpecialFX::Render2DFXs
+@0x21d3c0   # CSpecialFX::Update
+@0x6e4a7c   # CSpecialFX::Update
+@0x2257a0   # CStats::SetStatValue
+@0x228710   # CTheScripts::Process
+@0x3f3ad8   # CTheScripts::Process
+@0x21a9e0   # CTheScripts::ProcessAllSearchLights
+@0x425b80   # CTheScripts::ProcessAllSearchLights
+@0x22abb0   # CTheScripts::ProcessWaitingForScriptBrainArray
+@0x3f9d20   # CTheScripts::ProcessWaitingForScriptBrainArray
+@0x2307f0   # CTimeCycle::AddOne
+@0x5041b4   # CTimeCycle::AddOne
+@0x502b0c   # CTimeCycle::CalcColoursForPoint
+@0x226f20   # CTimeCycle::FindFarClipForCoors
+@0x5040ac   # CTimeCycle::FindFarClipForCoors
+@0x503e58   # CTimeCycle::FindTimeCycleBox
+@0x2216a0   # CTimeCycle::GetAmbientBlue
+@0x50427c   # CTimeCycle::GetAmbientBlue
+@0x21e710   # CTimeCycle::GetAmbientBlue_BeforeBrightness
+@0x50430c   # CTimeCycle::GetAmbientBlue_BeforeBrightness
+@0x220090   # CTimeCycle::GetAmbientBlue_Obj
+@0x5042bc   # CTimeCycle::GetAmbientBlue_Obj
+@0x228d00   # CTimeCycle::GetAmbientGreen
+@0x50425c   # CTimeCycle::GetAmbientGreen
+@0x22bf90   # CTimeCycle::GetAmbientGreen_BeforeBrightness
+@0x5042ec   # CTimeCycle::GetAmbientGreen_BeforeBrightness
+@0x229210   # CTimeCycle::GetAmbientGreen_Obj
+@0x5042ac   # CTimeCycle::GetAmbientGreen_Obj
+@0x22b150   # CTimeCycle::GetAmbientRed
+@0x50423c   # CTimeCycle::GetAmbientRed
+@0x228b20   # CTimeCycle::GetAmbientRed_BeforeBrightness
+@0x5042cc   # CTimeCycle::GetAmbientRed_BeforeBrightness
+@0x22ce90   # CTimeCycle::GetAmbientRed_Obj
+@0x50429c   # CTimeCycle::GetAmbientRed_Obj
+@0x22e4d0   # CTimeCycle::InitForRestart
+@0x504220   # CTimeCycle::InitForRestart
+@0x22d350   # CTimeCycle::Initialise
+@0x503ffc   # CTimeCycle::SetConstantParametersForPostFX
+@0x230650   # CTimeCycle::Shutdown
+@0x224b80   # CTimeCycle::StartExtraColour
+@0x504130   # CTimeCycle::StartExtraColour
+@0x22e700   # CTimeCycle::StopExtraColour
+@0x504194   # CTimeCycle::StopExtraColour
+@0x22a400   # CTimeCycle::Update
+@0x502adc   # CTimeCycle::Update
+@0x21ba60   # CWaterLevel::GetWaterLevel
+@0x230f80   # CWaterLevel::GetWaterLevelNoWaves
+@0x222db0   # CWaterLevel::RenderWater
+@0x6bbca4   # CWaterLevel::RenderWater
+@0x6c0268   # CWaterLevel::RenderWaterFog
+@0x6bc8c0   # CWaterLevel::RenderWaterRectangle
+@0x6bc6f0   # CWaterLevel::RenderWaterTriangle
+@0x5615bc   # CWeaponInfo::FindWeaponFireType
+@0x221af0   # CWeaponInfo::FindWeaponType
+@0x709c24   # CWeaponInfo::FindWeaponType
+@0x22c870   # CWeaponInfo::GetSkillStatIndex
+@0x709bfc   # CWeaponInfo::GetSkillStatIndex
+@0x21b3c0   # CWeaponInfo::GetTargetHeadRange
+@0x709c78   # CWeaponInfo::GetTargetHeadRange
+@0x21ea40   # CWeaponInfo::GetWeaponInfo
+@0x21b360   # CWeaponInfo::GetWeaponReloadTime
+@0x709c9c   # CWeaponInfo::GetWeaponReloadTime
+@0x229a60   # CWeaponInfo::Initialise
+@0x560e20   # CWeaponInfo::Initialise
+@0x21e390   # CWeaponInfo::Shutdown
+@0x6f1d1c   # CWeather::AddRain
+@0x6f2668   # CWeather::AddSandStormParticles
+@0x6f1ce8   # CWeather::FindWeatherTypesList
+@0x21d8f0   # CWeather::ForceWeather
+@0x6f24d8   # CWeather::ForceWeather
+@0x225380   # CWeather::ForceWeatherNow
+@0x21c5c0   # CWeather::ForecastWeather
+@0x6f2f14   # CWeather::ForecastWeather
+@0x227180   # CWeather::Init
+@0x6f0b1c   # CWeather::Init
+@0x22c9b0   # CWeather::ReleaseWeather
+@0x6f2650   # CWeather::ReleaseWeather
+@0x22a920   # CWeather::RenderRainStreaks
+@0x6f2808   # CWeather::RenderRainStreaks
+@0x224d40   # CWeather::SetWeatherToAppropriateTypeNow
+@0x6f2510   # CWeather::SetWeatherToAppropriateTypeNow
+@0x224780   # CWeather::Update
+@0x6f0bd8   # CWeather::Update
+@0x6f2308   # CWeather::UpdateInTunnelness
+@0x6f1bdc   # CWeather::UpdateWeatherRegion
+@0x22f250   # C_PcSave::DeleteSlot
+@0x226e60   # C_PcSave::GenerateGameFilename
+@0x5d444c   # C_PcSave::GenerateGameFilename
+@0x221bc0   # C_PcSave::PopulateSlotInfo
+@0x5d44e8   # C_PcSave::PopulateSlotInfo
+@0x22ca50   # C_PcSave::SaveSlot
+@0x5d42d8   # C_PcSave::SetSaveDirectory
+@0x22d200   # cHandlingDataMgr::ConvertBikeDataToGameUnits
+@0x69368c   # cHandlingDataMgr::ConvertBikeDataToGameUnits
+@0x693608   # cHandlingDataMgr::ConvertBikeDataToWorldUnits
+@0x222140   # cHandlingDataMgr::ConvertDataToGameUnits
+@0x69343c   # cHandlingDataMgr::ConvertDataToGameUnits
+@0x6933d0   # cHandlingDataMgr::ConvertDataToWorldUnits
+@0x21cb50   # cHandlingDataMgr::FindExactWord
+@0x693260   # cHandlingDataMgr::FindExactWord
+@0x22bf20   # cHandlingDataMgr::GetBoatPointer
+@0x693738   # cHandlingDataMgr::GetBoatPointer
+@0x22de80   # cHandlingDataMgr::GetFlyingPointer
+@0x69370c   # cHandlingDataMgr::GetFlyingPointer
+@0x228da0   # cHandlingDataMgr::GetHandlingId
+@0x693378   # cHandlingDataMgr::GetHandlingId
+@0x55d3d8   # cHandlingDataMgr::Initialise
+@0x69332c   # cHandlingDataMgr::cHandlingDataMgr
