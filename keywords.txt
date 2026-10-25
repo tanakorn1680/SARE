@@ -17,6 +17,9 @@
 @callees 220
 # stub นำเข้าสัญลักษณ์เกม + _INIT ที่ผูกตัวแปรกับสัญลักษณ์ (dlsym ตามชื่อ)
 @range 0x9d000-0xa5000
+# [ใหม่] กู้ฟังก์ชันที่ Ghidra มองไม่เห็น: ช่วงโค้ดแอปมีไบต์ undefined ~51.8 KB (หน้า Player/Weapon/Visual/Teleport/Ped ที่ไม่มี xref ใน dump รอบก่อน)
+# scripts/DefineCode.java สร้างฟังก์ชันในช่องว่างก่อนถอดโค้ด -> @range ด้านล่างจะครอบฟังก์ชันที่กู้ได้ด้วย (ไม่ครอบ 0x15a000+ ซึ่งเป็น libc++ ล้วน)
+@define 0x120000-0x15a000
 # โค้ดเมนูทั้งหมด (ตั้งแต่ ImGui backend / config / ทุกหน้า / hook / OnModLoad) ; toml:: std:: ถูกข้ามอัตโนมัติ
 @range 0x100000-0x181000
 # ส่วนท้าย (ตัวช่วย/ฟอร์แมต/ตัวแปรที่เมนูผูกไว้) ถ้า libc++ ปนก็ไม่เป็นไร ถูกกรองตามชื่อ
@@ -398,3 +401,20 @@
 @0x693378   # cHandlingDataMgr::GetHandlingId
 @0x55d3d8   # cHandlingDataMgr::Initialise
 @0x69332c   # cHandlingDataMgr::cHandlingDataMgr
+
+# ---- [ใหม่] กลุ่มฟังก์ชันเกมของฟีเจอร์ที่ยังทำไม่ได้ (ยังไม่เคยถอด) : Weapon / Player / Visual(PostFX, น้ำ, เมฆ) / สูตร / สถิติ / อนิเมชัน ----
+# หมายเหตุ: ฟังก์ชันที่หน้าเมนูอ้างด้วย base+offset ดิบ จะถูกต่อท้ายไฟล์นี้อัตโนมัติโดย workflow (scripts/gen_game_offsets.py) หลังถอดเมนูเสร็จ
+fn:cweapon::
+fn:cplayerinfo::
+fn:cplayerped::
+fn:cped::
+fn:cpedclothesdesc::
+fn:cclothes::
+fn:cstats::
+fn:ccheat::
+fn:canimmanager::
+fn:cpostEffects::
+fn:cwaterlevel::
+fn:cclouds::
+fn:ccam::
+fn:cmodelinfo::

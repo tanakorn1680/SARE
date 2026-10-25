@@ -50,7 +50,7 @@ jobs:
       - name: Run Ghidra headless (ทุก .so ใน zip)
         env:
           MAXMEM: 5G
-          KEYWORDS_FILE: ${{ github.workspace }}/keywords.txt
+          KEYWORDS_FILE: ${{ github.workspace }}/kw_run.txt
           MAX_DECOMP: "4000"
           MAX_CALLERS: "150"
           ONLY: ${{ inputs.only }}
@@ -75,6 +75,9 @@ jobs:
             fi
           fi
           if [ ! -s libs.txt ]; then echo "ไม่พบไฟล์ .so ใน input/*.zip"; exit 1; fi
+          # libCheatMenu64 ก่อน -> ได้ offset ฝั่งเกมที่เมนู (รวมหน้าที่กู้ได้) อ้างถึง แล้วค่อยถอด libGTASA ต่อในรอบเดียว
+          { grep -i 'cheatmenu' libs.txt || true; grep -vi 'cheatmenu' libs.txt || true; } > libs.ord && mv libs.ord libs.txt
+          cp keywords.txt kw_run.txt
           echo ">> จะวิเคราะห์:"; cat libs.txt
           cp libs.txt out/libs.txt
 
@@ -92,13 +95,24 @@ jobs:
             if [ "${{ steps.cache.outputs.cache-hit }}" = "true" ]; then
               echo ">> ใช้ project จาก cache (ข้ามการวิเคราะห์)"
               OUT_DIR="$OUT" "$GHIDRA/support/analyzeHeadless" gproj p -process "$NAME" -noanalysis \
-                -scriptPath "$PWD/scripts" -postScript ExportInfo.java < /dev/null
+                -scriptPath "$PWD/scripts" -postScript DefineCode.java -postScript ExportInfo.java < /dev/null
             else
               echo ">> import + วิเคราะห์ใหม่ (ช้า)"
               OUT_DIR="$OUT" "$GHIDRA/support/analyzeHeadless" gproj p -import "$SO" -overwrite \
                 -analysisTimeoutPerFile "$TMO" \
-                -scriptPath "$PWD/scripts" -postScript ExportInfo.java < /dev/null
+                -scriptPath "$PWD/scripts" -postScript DefineCode.java -postScript ExportInfo.java < /dev/null
             fi
+            # ---- ข้อมูลดิบที่ Ghidra export ไม่ให้ (ไบต์ rodata/data, ตารางพอยน์เตอร์, ช่อง GOT) ----
+            case "$NAME" in
+              *CheatMenu*)
+                python3 scripts/elfdump.py "$SO" "$OUT" --mode menu || true
+                python3 scripts/gen_game_offsets.py "$OUT/decompiled.c" gen_kw.txt "$OUT/menu_game_offsets.txt" || true
+                if [ -s gen_kw.txt ]; then { echo; echo "@lib libgtasa"; cat gen_kw.txt; } >> kw_run.txt; fi
+                ;;
+              *libGTASA*)
+                python3 scripts/elfdump.py "$SO" "$OUT" --mode game --offsets out/libCheatMenu64/menu_game_offsets.txt --window 0x20000 || true
+                ;;
+            esac
             echo "== $NAME ==" >> out/index.txt
             cat "$OUT/summary.txt" >> out/index.txt 2>/dev/null || echo "(ไม่มี summary)" >> out/index.txt
           done < libs.txt

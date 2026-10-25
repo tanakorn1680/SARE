@@ -15,6 +15,15 @@ Actions > "Ghidra analyze" > Run workflow
 ครั้งแรกที่ไม่มี cache วิเคราะห์ libGTASA ~22+ นาที ; ถ้ามี cache ทั้งงานน่าจะจบใน ~10-20 นาที
 เสร็จแล้วโหลด artifact "ghidra-out" แล้วส่งทั้ง zip กลับมาให้ AI ที่ทำ ProMenu (ห้ามตัดไฟล์ทิ้ง)
 
+== v3 (2026-10-25) : ปิดช่องว่างที่ทำให้ dump รอบก่อนยังใช้ทำหน้า Player/Weapon/Visual ไม่ได้ ==
+ผลตรวจ dump รอบก่อน (CheatMenuSource64full): ถอดแล้วแต่ "ไม่มีโค้ดหน้า Player/Weapon/Visual/Teleport" เพราะเป็นไบต์ undefined ใน .text (ไม่มีฟังก์ชันครอบ -> ไม่มี xref สตริง)
+  และตัวแปรเกมที่ _INIT ผูกไว้ ~790/946 ตัวไม่ถูกใช้ในโค้ดที่ถอดได้ ; ที่อยู่ base+offset 97/101 ตัวเป็นช่อง GOT ของ libGTASA (0x849fc8-0x851d30) ที่ dump ไม่บอกว่าชี้ไปไหน ;
+  struct คำสั่งสคริปต์ 22 ตัว (DAT_001477ec ฯลฯ) ไม่มีไบต์ในไฟล์
+workflow รอบนี้ทำครบในรันเดียว (ลำดับ): libCheatMenu64 -> DefineCode.java (กู้ฟังก์ชัน) -> ExportInfo (ถอด) -> elfdump.py --mode menu -> gen_game_offsets.py (offset ฝั่งเกม) -> libGTASA ถอดเพิ่มตาม offset นั้น + กลุ่ม fn: -> elfdump.py --mode game
+ไฟล์ใหม่ใน out/libCheatMenu64/: define_report.txt (ฟังก์ชันที่กู้ได้) rodata.hex data.hex (ไบต์ดิบ) ptrs.tsv (ตารางพอยน์เตอร์ -> สตริง/สัญลักษณ์) segments.tsv menu_game_offsets.txt
+ไฟล์ใหม่ใน out/libGTASA/: got_targets.tsv (ช่อง GOT -> เป้าหมายจริง ใช้แปลง base+0x84xxxx เป็นชื่อตัวแปรเกม) game_values.tsv (ไบต์เริ่มต้น 64 ไบต์ที่แต่ละ offset ที่เมนูอ้างถึง)
+ยังไม่เคยรันกับ Ghidra จริง: DefineCode.java (คอมไพล์ผ่านกับ API จำลอง) ; ถ้าล้ม workflow ไม่ล้ม (ข้ามไปถอดต่อ) ดู define_report.txt / log
+
 == ผลลัพธ์ (out/<ไลบรารี>/) ==
 - decompiled.named.c  ← อ่านไฟล์นี้เป็นหลัก : โค้ดถอดแล้ว + ชื่อสัญลักษณ์เกมจริงแทน FUN_/DAT_ ของ stub/ตัวแปรนำเข้า (เช่น CWaterLevel_GetWaterLevel, g_CTimeCycle_m_vRedGrade)
 - decompiled.c / decompiled_callers.c / decompiled_callees.c (+ .named.c) : ต้นฉบับ Ghidra ; callees = ฟังก์ชันที่โค้ดเมนูเรียกบ่อยสุด (ImGui ที่ลิงก์แบบ static, ตัวช่วยแปลข้อความ)
